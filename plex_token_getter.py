@@ -106,18 +106,22 @@ class PlexTokenGetter:
         media_container = self.get_device_list()
         device_json = {}
         devices = media_container.findall("Device")
-        for i, device in enumerate(devices, 1):
-            device_name = device.get("name")
-            device_product = device.get("product")
-            device_platform = device.get("device") if device.get("device") != "" else device.get("platform")
-            device_json[i] = {
-                "name": device_name,
-                "product": device_product,
-                "platform": device_platform,
-                "clientIdentifier": device.get("clientIdentifier"),
-                "plex_token": device.get("token")
-            }
-            print(f"{i}.\tDevice Name: {device_name:<20}\tProduct/Device: {device_product}/{device_platform}")
+        i = 0
+        print("Available Plex Devices:")
+        for device in devices:
+            if device.get("model") == "bundled":
+                i += 1
+                device_name = device.get("name")
+                device_product = device.get("product")
+                device_platform = device.get("device") if device.get("device") != "" else device.get("platform")
+                device_json[i] = {
+                    "name": device_name,
+                    "product": device_product,
+                    "platform": device_platform,
+                    "clientIdentifier": device.get("clientIdentifier"),
+                    "plex_token": device.get("token")
+                }
+                print(f"{i}.\tDevice Name: {device_name:<20}\tProduct/Device: {device_product}/{device_platform}")
         choice = input("Select a device by number to get the Plex token or type 'exit' to quit: ")
         if choice.lower() == 'exit' or choice.lower() == 'q':
             print("Exiting...")
