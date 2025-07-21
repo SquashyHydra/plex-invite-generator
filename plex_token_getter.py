@@ -1,13 +1,13 @@
 import requests, uuid
 import xml.etree.ElementTree as ET
+from helper.config import ConfigFile
 
 class PlexTokenGetter:
     def __init__(self, plex_email: str, plex_password: str):
+        self.configfile = ConfigFile()
         self.plex_email = plex_email
         self.plex_password = plex_password
         self.client_identifier = None
-        self.plex_client_identifier = None
-        self.plex_token = None
         self.session = self.plex_login()
 
     def plex_login(self):
@@ -84,20 +84,47 @@ class PlexTokenGetter:
             response.raise_for_status()
             return None
 
-    def plex_set_config_settings(self, plex_token: str, plex_client_identifier: str):
-        import os, sys
-        current_execution_path = os.path.dirname(os.path.abspath(sys.executable if hasattr(sys, 'frozen') else __file__))
-        config_path = os.path.join(current_execution_path, 'plex_config.ini')
-        import configparser
-        config = configparser.ConfigParser()
-        if os.path.exists(config_path):
-            config.read(config_path)
-            config['Plex'] = {
-                'plex_token': plex_token,
-                'plex_client_identifier': plex_client_identifier
-            }
-            with open(config_path, 'w') as configfile:
-                config.write(configfile)
+    def select_bundled_device(self, device_json):
+        for i, device in device_json.items():
+            print(f"{i}.\tDevice Name: {device['name']:<10}\tProduct/Device: {device['product']}/{device['platform']}")
+
+        choice = input("Select a device by number to get the Plex token or type 'exit' to quit: ")
+        if choice.lower() == 'exit' or choice.lower() == 'q':
+            print("Exiting...")
+            return
+        try:
+            choice = int(choice)
+            if choice in device_json:
+                plex_token = device_json[choice]["plex_token"]
+                plex_client_identifier = device_json[choice]["clientIdentifier"]
+                print(f"Plex Token: {plex_token}")
+                print(f"Plex Client Identifier: {plex_client_identifier}")
+                self.configfile.set_bundled_config(plex_token, plex_client_identifier)
+            else:
+                print("Invalid choice, please try again.")
+        except ValueError:
+            print("Invalid input, please enter a number or 'exit' to quit.")
+
+    def select_standalone_device(self, client_json):
+        for j, device in client_json.items():
+            print(f"{j}.\tDevice Name: {device['name']:>20}\tProduct/Device: {device['product']}/{device['platform']}")
+
+        choice = input("Select a device by number to get the Plex token or type 'exit' to quit: ")
+        if choice.lower() == 'exit' or choice.lower() == 'q':
+            print("Exiting...")
+            return
+        try:
+            choice = int(choice)
+            if choice in client_json:
+                plex_token = client_json[choice]["plex_token"]
+                plex_client_identifier = client_json[choice]["clientIdentifier"]
+                print(f"Plex Token: {plex_token}")
+                print(f"Plex Client Identifier: {plex_client_identifier}")
+                self.configfile.set_standalone_config(plex_token, plex_client_identifier)
+            else:
+                print("Invalid choice, please try again.")
+        except ValueError:
+            print("Invalid input, please enter a number or 'exit' to quit.")
 
     def device_list(self):
         if not self.session:
@@ -123,7 +150,6 @@ class PlexTokenGetter:
                     "clientIdentifier": device.get("clientIdentifier"),
                     "plex_token": device.get("token")
                 }
-                print(f"{i}.\tDevice Name: {device_name:<20}\tProduct/Device: {device_product}/{device_platform}")
             elif device.get("model") == "standalone":
                 j += 1
                 device_name = device.get("name")
@@ -136,22 +162,9 @@ class PlexTokenGetter:
                     "clientIdentifier": device.get("clientIdentifier"),
                     "plex_token": device.get("token")
                 }
-        choice = input("Select a device by number to get the Plex token or type 'exit' to quit: ")
-        if choice.lower() == 'exit' or choice.lower() == 'q':
-            print("Exiting...")
-            return
-        try:
-            choice = int(choice)
-            if choice in device_json:
-                self.plex_token = device_json[choice-1]["plex_token"]
-                self.plex_client_identifier = device_json[choice-1]["clientIdentifier"]
-                print(f"Plex Token: {self.plex_token}")
-                print(f"Plex Client Identifier: {self.plex_client_identifier}")
-                self.plex_set_config_settings(self.plex_token, self.plex_client_identifier)
-            else:
-                print("Invalid choice, please try again.")
-        except ValueError:
-            print("Invalid input, please enter a number or 'exit' to quit.")
+
+        self.select_bundled_device(device_json)
+        self.select_standalone_device(client_json)
     
 def password_check(password: str) -> bool:
     if not password:
